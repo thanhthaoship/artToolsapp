@@ -1,7 +1,33 @@
+import React from "react";
 import { View, Text, Image, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-export default function ArtToolCard({ tool, onPress, onFavorite }) {
+// 🔹 Định nghĩa kiểu dữ liệu
+export interface ArtTool {
+  id: number;
+  artName: string;
+  price: number;
+  image: string;
+  brand?: string; // ✅ thêm dòng này
+  description?: string;
+  limitedTimeDeal?: number;
+  feedbacks?: {
+    rating: number;
+    comment: string;
+    author: string;
+  }[];
+  isFavorite?: boolean;
+}
+
+
+// 🔹 Kiểu prop cho component
+interface ArtToolCardProps {
+  tool: ArtTool;
+  onPress: () => void;
+  onFavorite: () => void;
+}
+
+export default function ArtToolCard({ tool, onPress, onFavorite }: ArtToolCardProps) {
   return (
     <Pressable
       onPress={onPress}
@@ -23,9 +49,7 @@ export default function ArtToolCard({ tool, onPress, onFavorite }) {
         <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 5 }}>
           {tool.artName}
         </Text>
-        <Text style={{ fontSize: 14, color: "gray" }}>
-          Price: ${tool.price}
-        </Text>
+        <Text style={{ fontSize: 14, color: "gray" }}>Price: ${tool.price}</Text>
 
         {/* Khu vực chứa tim ❤️ */}
         <Pressable
