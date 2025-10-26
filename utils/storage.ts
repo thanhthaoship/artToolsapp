@@ -1,27 +1,30 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ArtTool } from "./types";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ArtTool } from '../types/artTool';
 
-const FAVORITES_KEY = "favorites";
+const FAVORITES_KEY = 'FAVORITES_v1';
 
-export async function getFavorites(): Promise<ArtTool[]> {
-  const data = await AsyncStorage.getItem(FAVORITES_KEY);
-  return data ? JSON.parse(data) : [];
-}
-
-export async function addFavorite(tool: ArtTool): Promise<void> {
-  const favorites = await getFavorites();
-  if (!favorites.some((item) => item.id === tool.id)) {
-    const updated = [...favorites, tool];
-    await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+export async function loadFavorites(): Promise<Record<string, ArtTool>> {
+  try {
+    const raw = await AsyncStorage.getItem(FAVORITES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (err) {
+    console.warn('Error loading favorites', err);
+    return {};
   }
 }
 
-export async function removeFavorite(id: number): Promise<void> {
-  const favorites = await getFavorites();
-  const updated = favorites.filter((item) => item.id !== id);
-  await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+export async function saveFavorites(favorites: Record<string, ArtTool>): Promise<void> {
+  try {
+    await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+  } catch (err) {
+    console.warn('Error saving favorites', err);
+  }
 }
 
 export async function clearFavorites(): Promise<void> {
-  await AsyncStorage.removeItem(FAVORITES_KEY);
+  try {
+    await AsyncStorage.removeItem(FAVORITES_KEY);
+  } catch (err) {
+    console.warn('Error clearing favorites', err);
+  }
 }

@@ -1,74 +1,114 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  Image,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
-import { useLocalSearchParams } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import RatingStars from "../components/custom/RatingStars";
-import { getArtToolById } from "../utils/api";
-import { ArtTool } from "../utils/types";
-import { useFavorites } from "../context/FavoritesContext";
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, ScrollView, ActivityIndicator, Pressable } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { fetchArtToolById } from '../utils/api';
+import { ArtTool } from '../types/artTool';
+import { useFavorites } from '../context/FavoritesContext';
 
 export default function DetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [tool, setTool] = useState<ArtTool | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const { toggleFavorite, isFavorite } = useFavorites();
+  const [item, setItem] = useState<ArtTool | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { favorites, toggleFavorite } = useFavorites();
+
+  const isFav = !!(id && favorites[id]);
 
   useEffect(() => {
-    if (!id) return;
-    const load = async () => {
-      try {
-        const data = await getArtToolById(id);
-        setTool(data as ArtTool);
-      } catch (e) {
-        console.error("Error loading tool", e);
-        setTool(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    (async () => {
+      if (!id) return;
+      const data = await fetchArtToolById(id);
+      setItem(data);
+      setLoading(false);
+    })();
   }, [id]);
 
-  if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
+  if (loading) {
+    return <ActivityIndicator style={{ marginTop: 40 }} size="large" color="#8FBC8F" />;
+  }
+  if (!item) {
+    return <Text style={{ margin: 20 }}>ArtTool not found.</Text>;
+  }
 
-  if (!tool) return <Text style={{ marginTop: 50, textAlign: "center" }}>Tool not found</Text>;
+  // safe average
+  const feedbacks = Array.isArray(item.feedbacks) ? item.feedbacks : [];
+  const avgRating =
+    feedbacks.length > 0
+      ? feedbacks.reduce((sum, fb) => sum + (fb.rating || 0), 0) / feedbacks.length
+      : 0;
 
   return (
-    <ScrollView style={{ padding: 10 }}>
-      <Image source={{ uri: tool.image }} style={{ width: "100%", height: 250, borderRadius: 10 }} />
-      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 15 }}>
-        <Text style={{ fontSize: 22, fontWeight: "bold", flex: 1 }}>{tool.artName}</Text>
-        <TouchableOpacity onPress={() => toggleFavorite(tool)}>
-          <Ionicons name={isFavorite(tool.id) ? "heart" : "heart-outline"} size={26} color={isFavorite(tool.id) ? "red" : "gray"} />
-        </TouchableOpacity>
+    <ScrollView style={{ flex: 1, backgroundColor: '#fff' }} contentContainerStyle={{ padding: 16 }}>
+      <Image
+        source={{ uri: item.image }}
+        style={{ width: '100%', height: 250, borderRadius: 12, marginBottom: 16 }}
+        resizeMode="contain"
+      />
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ fontSize: 20, fontWeight: '700', flex: 1 }}>{item.artName}</Text>
+
+        <Pressable onPress={() => toggleFavorite(item)} hitSlop={8}>
+          <Ionicons
+            name={isFav ? 'heart' : 'heart-outline'}
+            size={30}
+            color={isFav ? '#b01f1f' : '#cfbbbb'}
+            style={{
+              textShadowColor: 'rgba(0,0,0,0.2)',
+              textShadowOffset: { width: 1, height: 1 },
+              textShadowRadius: 2,
+            }}
+          />
+        </Pressable>
       </View>
 
-      <Text style={{ fontSize: 16, color: "gray", marginTop: 8 }}>${tool.price}</Text>
-      {tool.limitedTimeDeal ? <Text style={{ color: "green", marginTop: 6 }}>Limited time deal: {Math.round((tool.limitedTimeDeal ?? 0) * 100)}% off</Text> : null}
+      <Text style={{ color: '#ee2330', fontWeight: '700', fontSize: 30, marginTop: 8 }}>${item.price}</Text>
 
-      <RatingStars rating={tool.feedbacks?.[0]?.rating ?? 4} />
+      <Text style={{ marginVertical: 8 }}>{item.description}</Text>
 
-      <Text style={{ marginTop: 10, lineHeight: 20 }}>{tool.description ?? "No description."}</Text>
-
+      {/* Ratings & Feedbacks */}
       <View style={{ marginTop: 20 }}>
-        <Text style={{ fontWeight: "bold", fontSize: 18, marginBottom: 10 }}>Feedbacks</Text>
-        {tool.feedbacks && tool.feedbacks.length > 0 ? (
-          tool.feedbacks.map((fb, i) => (
-            <View key={i} style={{ backgroundColor: "#f5f5f5", padding: 10, borderRadius: 10, marginBottom: 8 }}>
-              <RatingStars rating={fb.rating} />
-              <Text style={{ fontStyle: "italic", marginTop: 5 }}>"{fb.comment}"</Text>
-              <Text style={{ fontSize: 12, color: "gray", marginTop: 5 }}>- {fb.author}</Text>
+        <Text style={{ fontWeight: '700', fontSize: 18, marginBottom: 8 }}>Ratings & Feedbacks</Text>
+
+        {feedbacks.length > 0 ? (
+          <>
+            {/* average row */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600' }}>
+                {avgRating.toFixed(1)} / 5
+              </Text>
+
+              <Ionicons name="star" size={20} color="#FFD700" style={{ marginLeft: 6 }} />
+
+              <Text style={{ color: '#666', marginLeft: 8 }}>
+                ({feedbacks.length} reviews)
+              </Text>
             </View>
-          ))
+
+            {/* list */}
+            {feedbacks.map((fb, idx) => (
+              <View
+                key={idx}
+                style={{
+                  marginBottom: 12,
+                  borderBottomWidth: 0.5,
+                  borderColor: '#ddd',
+                  paddingBottom: 8,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontWeight: '600' }}>{fb.rating}</Text>
+                  <Ionicons name="star" size={16} color="#FFD700" style={{ marginLeft: 6 }} />
+                </View>
+
+                <Text style={{ fontStyle: 'italic', marginVertical: 6 }}>{fb.comment}</Text>
+
+                <Text style={{ color: '#666', fontSize: 12 }}>by {fb.author}</Text>
+              </View>
+            ))}
+          </>
         ) : (
-          <Text style={{ color: "gray", fontStyle: "italic" }}>No feedbacks yet.</Text>
+          <Text style={{ color: '#888', fontStyle: 'italic' }}>No feedback yet</Text>
         )}
       </View>
     </ScrollView>

@@ -1,15 +1,16 @@
-export interface ArtTool {
-  id: number;
+export type ArtTool = {
+  id: string;
   artName: string;
-  image: string;
   price: number;
   description?: string;
+  glassSurface?: boolean;
+  image?: string;
   brand?: string;
   limitedTimeDeal?: number;
   feedbacks?: {
     rating: number;
     comment: string;
     author: string;
+    date: string;
   }[];
-  isFavorite?: boolean; // thêm để tránh lỗi khi truyền qua props
-}
+};

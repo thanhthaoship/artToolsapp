@@ -1,39 +1,54 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
-import { ArtTool } from "@/utils/types";
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { ArtTool } from '../types/artTool';
+import { loadFavorites, saveFavorites, clearFavorites as clearFavStorage } from '../utils/storage';
 
-interface FavoritesContextType {
-  favorites: ArtTool[];
-  toggleFavorite: (tool: ArtTool) => void;
-  isFavorite: (id: number) => boolean;
-}
+type FavoritesContextValue = {
+  favorites: Record<string, ArtTool>;
+  toggleFavorite: (item: ArtTool) => Promise<void>;
+  removeFavorite: (id: string) => Promise<void>;
+  clearFavorites: () => Promise<void>;
+};
 
-const FavoritesContext = createContext<FavoritesContextType | undefined>(undefined);
+const FavoritesContext = createContext<FavoritesContextValue | undefined>(undefined);
 
-export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
-  const [favorites, setFavorites] = useState<ArtTool[]>([]);
+export function FavoritesProvider({ children }: { children: ReactNode }) {
+  const [favorites, setFavorites] = useState<Record<string, ArtTool>>({});
 
-  const toggleFavorite = (tool: ArtTool) => {
-    setFavorites((prev) => {
-      const exists = prev.find((item) => item.id === tool.id);
-      if (exists) {
-        return prev.filter((item) => item.id !== tool.id);
-      } else {
-        return [...prev, { ...tool, isFavorite: true }];
-      }
-    });
+  useEffect(() => {
+    (async () => setFavorites(await loadFavorites()))();
+  }, []);
+
+  const persist = async (next: Record<string, ArtTool>) => {
+    setFavorites(next);
+    await saveFavorites(next);
   };
 
-  const isFavorite = (id: number) => favorites.some((item) => item.id === id);
+  const toggleFavorite = async (item: ArtTool) => {
+    const next = { ...favorites };
+    next[item.id] ? delete next[item.id] : (next[item.id] = item);
+    await persist(next);
+  };
+
+  const removeFavorite = async (id: string) => {
+    const next = { ...favorites };
+    delete next[id];
+    await persist(next);
+  };
+
+  const clearFavorites = async () => {
+    setFavorites({});
+    await clearFavStorage();
+  };
 
   return (
-    <FavoritesContext.Provider value={{ favorites, toggleFavorite, isFavorite }}>
+    <FavoritesContext.Provider value={{ favorites, toggleFavorite, removeFavorite, clearFavorites }}>
       {children}
     </FavoritesContext.Provider>
   );
-};
+}
 
 export const useFavorites = () => {
-  const context = useContext(FavoritesContext);
-  if (!context) throw new Error("useFavorites must be used within FavoritesProvider");
-  return context;
+  const ctx = useContext(FavoritesContext);
+  if (!ctx) throw new Error('useFavorites must be used inside FavoritesProvider');
+  return ctx;
 };

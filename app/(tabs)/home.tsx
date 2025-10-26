@@ -1,116 +1,143 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  FlatList,
-  Text,
-  ActivityIndicator,
-  StyleSheet,
-  TextInput,
-} from "react-native";
-import { router } from "expo-router";
-import ArtToolCard from "../../components/custom/ArtToolCard";
-import { ArtTool } from "../../utils/types";
-import { getArtTools } from "../../utils/api";
-import { useFavorites } from "../../context/FavoritesContext";
+import React, { useEffect, useState } from 'react';
+import { View, Text, FlatList, Image, Pressable, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ArtTool } from '../../types/artTool';
+import { useFavorites } from '../../context/FavoritesContext';
+import { fetchArtTools } from '../../utils/api';
+import { Ionicons } from "@expo/vector-icons";
 
 export default function HomeScreen() {
-  const [tools, setTools] = useState<ArtTool[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const { favorites, toggleFavorite, isFavorite } = useFavorites();
-  const [searchText, setSearchText] = useState("");
-  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const router = useRouter();
+  const [data, setData] = useState<ArtTool[]>([]);
+  const [filtered, setFiltered] = useState<ArtTool[]>([]);
+  const [brands, setBrands] = useState<string[]>([]);
+  const [brandFilter, setBrandFilter] = useState<string>('All');
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  const { favorites, toggleFavorite } = useFavorites();
 
   useEffect(() => {
-    const load = async () => {
+    (async () => {
       try {
-        const data = await getArtTools();
-        setTools(data || []);
-      } catch (e) {
-        console.error("Error fetching tools", e);
-        setTools([]);
+        const list = await fetchArtTools();
+        setData(list);
+        setFiltered(list);
+        setBrands(['All', ...Array.from(new Set(list.map(i => i.brand || 'Unknown')))]);
+      } catch (err) {
+        Alert.alert('Error', 'Cannot load data');
       } finally {
         setLoading(false);
       }
-    };
-    load();
+    })();
   }, []);
 
-  if (loading) {
-    return <ActivityIndicator size="large" style={{ flex: 1 }} />;
-  }
+  useEffect(() => {
+    let temp = [...data];
+    if (brandFilter !== 'All') temp = temp.filter(it => it.brand === brandFilter);
+    if (query.trim()) temp = temp.filter(it => it.artName.toLowerCase().includes(query.toLowerCase()));
+    setFiltered(temp);
+  }, [data, brandFilter, query]);
 
-  const brands = Array.from(new Set(tools.map((t) => t.brand).filter(Boolean))) as string[];
+  const renderItem = ({ item }: { item: ArtTool }) => {
+    const isFav = !!favorites[item.id];
+    return (
+      <Pressable
+        onPress={() => router.push({ pathname: '/detail', params: { id: item.id } })}
+        style={{
+          flexDirection: 'row',
+          marginVertical: 8,
+          backgroundColor: 'white',
+          padding: 10,
+          borderRadius: 10,
+          shadowColor: '#000',
+          shadowOpacity: 0.1,
+          shadowRadius: 3,
+          elevation: 2,
+        }}>
+        <Image source={{ uri: item.image }} style={{ width: 80, height: 80, borderRadius: 6, marginRight: 10 }} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontWeight: '700', marginBottom: 4 }}>{item.artName}</Text>
+          <Text style={{ color: '#666' }}>Brand: {item.brand}</Text>
+          <Text style={{ color: '#ee2330ff', fontWeight: '600' }}>${item.price}</Text>
+        </View>
+        <Pressable onPress={() => toggleFavorite(item)} hitSlop={8}>
+          <Ionicons
+            name={isFav ? "heart" : "heart-outline"}
+            size={26}
+            color={isFav ? "#E57373" : "#ccc"}
+          />
+        </Pressable>
+      </Pressable>
+    );
+  };
 
-  const filtered = tools.filter((t) => {
-    const matchesSearch = t.artName.toLowerCase().includes(searchText.toLowerCase());
-    const matchesBrand = selectedBrand ? t.brand === selectedBrand : true;
-    return matchesSearch && matchesBrand;
-  });
+  if (loading) return <ActivityIndicator style={{ marginTop: 40 }} size="large" color="#8FBC8F" />;
 
   return (
-    <View style={{ flex: 1, padding: 10 }}>
-      <TextInput
-        style={styles.search}
-        value={searchText}
-        onChangeText={setSearchText}
-        placeholder="Search art tools..."
-      />
+    <View style={{ flex: 1, backgroundColor: '#f4f4f4' }}>
+      {/* 🔹 Phần search + filter */}
+      <View style={{ padding: 10, backgroundColor: '#f4f4f4' }}>
+        <TextInput
+          placeholder="Search art tools..."
+          value={query}
+          onChangeText={setQuery}
+          style={{
+            backgroundColor: 'white',
+            padding: 8,
+            borderRadius: 10,
+            marginBottom: 10,
+          }}
+        />
 
-      <FlatList
-        horizontal
-        data={brands}
-        keyExtractor={(item, idx) => `${item}-${idx}`}
-        renderItem={({ item }) => {
-          const selected = selectedBrand === item;
-          return (
-            <View style={{ paddingHorizontal: 4 }}>
+        <FlatList
+          data={brands}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item) => item}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => setBrandFilter(item)}
+              style={{
+                backgroundColor: brandFilter === item ? '#709972ff' : 'white',
+                paddingHorizontal: 15,
+                paddingVertical: 8,
+                borderRadius: 20,
+                marginRight: 8,
+                borderWidth: 1,
+                borderColor: '#709972ff',
+              }}
+            >
               <Text
-                onPress={() => setSelectedBrand(selected ? null : item)}
-                style={[styles.brandButton, selected && styles.brandSelected, { padding: 10 }]}
+                style={{
+                  color: brandFilter === item ? 'white' : '#333',
+                  fontWeight: '600',
+                }}
               >
                 {item}
               </Text>
-            </View>
-          );
-        }}
-        style={{ marginBottom: 10 }}
-      />
+            </Pressable>
+          )}
+          contentContainerStyle={{
+            alignItems: 'center',
+            paddingVertical: 4,
+          }}
+        />
+      </View>
 
+      {/* 🔹 Phần danh sách sản phẩm */}
       <FlatList
         data={filtered}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <ArtToolCard
-            tool={{ ...item, isFavorite: isFavorite(item.id) }}
-            onPress={() => router.push(`/detail?id=${item.id}`)}
-            onFavorite={() => toggleFavorite(item)}
-          />
-        )}
-        ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 30 }}>No art tools found</Text>}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        style={{ flex: 1, paddingHorizontal: 10 }}
+        ListEmptyComponent={
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text>No items found</Text>
+          </View>
+        }
       />
     </View>
   );
-}
 
-const styles = StyleSheet.create({
-  search: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 10,
-  },
-  brandButton: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 20,
-    backgroundColor: "#f9f9f9",
-    textAlign: "center",
-    minWidth: 70,
-  },
-  brandSelected: {
-    backgroundColor: "#2E7D32",
-    color: "#fff",
-  },
-});
+}
