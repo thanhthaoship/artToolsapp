@@ -9,6 +9,7 @@ export default function Favorites() {
   const router = useRouter();
   const favList = Object.values(favorites);
 
+
   const confirmClear = () => {
     Alert.alert('Clear All', 'Remove all favorites?', [
       { text: 'Cancel', style: 'cancel' },

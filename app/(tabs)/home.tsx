@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { ArtTool } from "../../types/artTool";
 import { useFavorites } from "../../context/FavoritesContext";
 import { fetchArtTools } from "../../utils/api";
@@ -26,13 +26,24 @@ export default function HomeScreen() {
 
   const { favorites, toggleFavorite } = useFavorites();
 
-  useFocusEffect(
-    useCallback(() => {
-      setQuery("");
-      setBrandFilter("All");
-      setFiltered(data);
-    }, [data])
-  );
+  const HomeScreen = () => {
+    const { reset } = useLocalSearchParams();
+    const router = useRouter();
+
+    useEffect(() => {
+      if (reset === "true") {
+        // 🔹 Reset khi tab Home được nhấn lại
+        setQuery("");
+        setBrandFilter("All");
+        setFiltered(data);
+
+        // 🔹 Xóa param reset khỏi URL (để khi back không reset lại)
+        router.replace("/home");
+      }
+    }, [reset]);
+
+    // ...
+  };
 
   useEffect(() => {
     (async () => {

@@ -1,9 +1,11 @@
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import React from "react";
 
 export default function TabsLayout() {
-  return (
+  const router = useRouter();
 
+  return (
     <Tabs
       screenOptions={({ route }) => ({
         headerStyle: { backgroundColor: "#709972ff" }, // 💚 đồng bộ với RootLayout
@@ -23,10 +25,29 @@ export default function TabsLayout() {
         },
       })}
     >
-      <Tabs.Screen name="home" options={{ title: "Home" }} />
-      <Tabs.Screen name="favorites" options={{ title: "Favorites" }} />
-      <Tabs.Screen name="imagepicker" options={{ title: "Image Picker" }} />
+      <Tabs.Screen
+        name="home"
+        options={{ title: "Home" }}
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            // ✅ Chỉ reset khi bấm tab Home
+            router.replace({ pathname: "/home", params: { reset: "true" } });
+          },
+        }}
+      />
 
+      {/* ❤️ Favorites tab */}
+      <Tabs.Screen
+        name="favorites"
+        options={{ title: "Favorites" }}
+      />
+
+      {/* 📸 Image Picker tab */}
+      <Tabs.Screen
+        name="imagepicker"
+        options={{ title: "Image Picker" }}
+      />
     </Tabs>
   );
 }
